@@ -16,7 +16,7 @@ const (
 )
 
 type BaseMedia struct {
-	gorm.Model
+	gorm.Model      `swaggerignore:"true"`
 	Username        string      `json:"username"`
 	Title           string      `json:"title"`
 	ExternalID      int         `json:"external_id"`
