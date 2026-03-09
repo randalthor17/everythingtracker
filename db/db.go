@@ -3,6 +3,7 @@ package db
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -19,14 +20,21 @@ func UpsertMedia(item any, updateColumns []string) error {
 	}).Create(item).Error
 }
 
-func InitDatabase() {
-	_ = os.Mkdir("data", 0o755)
+// InitDatabase initializes the database at the given path
+func InitDatabase(dbPath string) {
+	// Extract directory from path and create if needed
+	dir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		panic("failed to create database directory: " + err.Error())
+	}
+
 	var err error
-	DB, err = gorm.Open(sqlite.Open("data/tracker.sqlite"), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
 }
+
 
 // MigrateModels migrates the provided models into the database
 func MigrateModels(models ...any) error {

@@ -101,11 +101,10 @@ func PostAnimeHandler(c *gin.Context) {
 	item.Title = anilistData.Title
 	item.ProgressUnit = anilistData.ProgressUnit
 
-	// Handle progress based on whether AniList has episode count
 	if anilistData.ProgressTotal == 0 {
 		// AniList doesn't know total episodes, use user-supplied values for both
 		// item.ProgressCurrent and item.ProgressTotal already set from JSON
-		item.ProgressTotal = item.ProgressCurrent // Assume user is tracking progress out of current if total is unknown
+		item.ProgressTotal = item.ProgressCurrent
 
 		// Validate that user's progress is non-negative
 		if item.ProgressCurrent < 0 {
@@ -176,11 +175,16 @@ func PostMangaHandler(c *gin.Context) {
 	item.Title = anilistData.Title
 	item.ProgressUnit = anilistData.ProgressUnit
 
-	// Handle progress based on whether AniList has chapter count
 	if anilistData.ProgressTotal == 0 {
 		// AniList doesn't know total chapters, use user-supplied values for both
 		// item.ProgressCurrent and item.ProgressTotal already set from JSON
-		item.ProgressTotal = item.ProgressCurrent // For ongoing manga, treat current progress as total
+		item.ProgressTotal = item.ProgressCurrent
+		
+		// Validate that user's progress is non-negative
+		if item.ProgressCurrent < 0 {
+			c.JSON(400, gin.H{"error": "progress_current cannot be negative"})
+			return
+		}
 	} else {
 		// AniList knows total chapters, use it
 		item.ProgressTotal = anilistData.ProgressTotal

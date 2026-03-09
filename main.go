@@ -21,7 +21,7 @@ import (
 // @BasePath /
 
 func main() {
-	db.InitDatabase()
+	db.InitDatabase("data/tracker.sqlite")
 	err := db.MigrateModels(&anilist.Anime{}, &anilist.Manga{})
 	if err != nil {
 		panic("failed to migrate database")
