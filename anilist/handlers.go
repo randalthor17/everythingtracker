@@ -1,11 +1,13 @@
 package anilist
 
 import (
+	"errors"
 	"strconv"
 
 	"everythingtracker/db"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type ErrorResponse struct {
@@ -179,7 +181,7 @@ func PostMangaHandler(c *gin.Context) {
 		// AniList doesn't know total chapters, use user-supplied values for both
 		// item.ProgressCurrent and item.ProgressTotal already set from JSON
 		item.ProgressTotal = item.ProgressCurrent
-		
+
 		// Validate that user's progress is non-negative
 		if item.ProgressCurrent < 0 {
 			c.JSON(400, gin.H{"error": "progress_current cannot be negative"})
@@ -238,7 +240,27 @@ func SyncAnimeHandler(c *gin.Context) {
 
 	for i := range data {
 		data[i].Username = username
-		err := db.UpsertMedia(&data[i], []string{"title", "status", "progress_current", "updated_at"})
+
+		var existing Anime
+		err := db.DB.Where("username = ? AND external_id = ?", username, data[i].ExternalID).First(&existing).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := db.DB.Create(&data[i]).Error; err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			continue
+		}
+
+		if !data[i].UpdatedAt.After(existing.UpdatedAt) {
+			continue
+		}
+
+		err = db.UpsertMedia(&data[i], []string{"title", "status", "progress_current", "progress_total", "progress_unit", "updated_at"})
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
@@ -277,7 +299,27 @@ func SyncMangaHandler(c *gin.Context) {
 
 	for i := range data {
 		data[i].Username = username
-		err := db.UpsertMedia(&data[i], []string{"title", "status", "progress_current", "progress_total", "updated_at"})
+
+		var existing Manga
+		err := db.DB.Where("username = ? AND external_id = ?", username, data[i].ExternalID).First(&existing).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := db.DB.Create(&data[i]).Error; err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			continue
+		}
+
+		if !data[i].UpdatedAt.After(existing.UpdatedAt) {
+			continue
+		}
+
+		err = db.UpsertMedia(&data[i], []string{"title", "status", "progress_current", "progress_total", "progress_unit", "updated_at"})
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return

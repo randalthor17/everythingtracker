@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"everythingtracker/base"
+	"time"
 
 	"github.com/rl404/verniy"
 )
@@ -18,7 +19,27 @@ func (Manga) TableName() string {
 func FetchAniListManga(username string) ([]Manga, error) {
 	v := verniy.New()
 
-	collection, err := v.GetUserMangaList(username)
+	collection, err := v.GetUserMangaList(
+		username,
+		verniy.MediaListGroupFieldName,
+		verniy.MediaListGroupFieldStatus,
+		verniy.MediaListGroupFieldEntries(
+			verniy.MediaListFieldID,
+			verniy.MediaListFieldStatus,
+			verniy.MediaListFieldProgress,
+			verniy.MediaListFieldCreatedAt,
+			verniy.MediaListFieldUpdatedAt,
+			verniy.MediaListFieldMedia(
+				verniy.MediaFieldID,
+				verniy.MediaFieldTitle(
+					verniy.MediaTitleFieldRomaji,
+					verniy.MediaTitleFieldEnglish,
+					verniy.MediaTitleFieldNative,
+				),
+				verniy.MediaFieldChapters,
+			),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +66,12 @@ func FetchAniListManga(username string) ([]Manga, error) {
 			item.ProgressCurrent = float64(*entry.Progress)
 			item.ProgressTotal = progressTotal
 			item.ProgressUnit = "ch"
+			if entry.CreatedAt != nil {
+				item.CreatedAt = time.Unix(int64(*entry.CreatedAt), 0).UTC()
+			}
+			if entry.UpdatedAt != nil {
+				item.UpdatedAt = time.Unix(int64(*entry.UpdatedAt), 0).UTC()
+			}
 			items = append(items, item)
 		}
 	}
@@ -70,7 +97,6 @@ func SearchAnilistManga(query string, searchCount int) ([]Manga, error) {
 	return res, nil
 }
 
-
 func GetMangaByExternalID(externalID int) (*Manga, error) {
 	v := verniy.New()
 
@@ -78,19 +104,18 @@ func GetMangaByExternalID(externalID int) (*Manga, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	item := Manga{}
 	item.Title = ExtractTitle(media.ID, media)
 	item.ExternalID = media.ID
 	item.ProgressUnit = "ch"
-	
+
 	// AniList doesn't reliably track total chapters for ongoing manga
 	if media.Chapters != nil && *media.Chapters > 0 {
 		item.ProgressTotal = float64(*media.Chapters)
 	} else {
 		item.ProgressTotal = 0 // Unknown/ongoing
 	}
-	
+
 	return &item, nil
 }
-

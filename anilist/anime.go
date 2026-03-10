@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"everythingtracker/base"
+	"time"
 
 	"github.com/rl404/verniy"
 )
@@ -18,7 +19,27 @@ func (Anime) TableName() string {
 func FetchAniListAnime(username string) ([]Anime, error) {
 	v := verniy.New()
 
-	collection, err := v.GetUserAnimeList(username)
+	collection, err := v.GetUserAnimeList(
+		username,
+		verniy.MediaListGroupFieldName,
+		verniy.MediaListGroupFieldStatus,
+		verniy.MediaListGroupFieldEntries(
+			verniy.MediaListFieldID,
+			verniy.MediaListFieldStatus,
+			verniy.MediaListFieldProgress,
+			verniy.MediaListFieldCreatedAt,
+			verniy.MediaListFieldUpdatedAt,
+			verniy.MediaListFieldMedia(
+				verniy.MediaFieldID,
+				verniy.MediaFieldTitle(
+					verniy.MediaTitleFieldRomaji,
+					verniy.MediaTitleFieldEnglish,
+					verniy.MediaTitleFieldNative,
+				),
+				verniy.MediaFieldEpisodes,
+			),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +65,12 @@ func FetchAniListAnime(username string) ([]Anime, error) {
 			item.ProgressCurrent = float64(*entry.Progress)
 			item.ProgressTotal = progressTotal
 			item.ProgressUnit = "ep"
+			if entry.CreatedAt != nil {
+				item.CreatedAt = time.Unix(int64(*entry.CreatedAt), 0).UTC()
+			}
+			if entry.UpdatedAt != nil {
+				item.UpdatedAt = time.Unix(int64(*entry.UpdatedAt), 0).UTC()
+			}
 			items = append(items, item)
 		}
 	}
@@ -76,7 +103,7 @@ func GetAnimeByExternalID(externalID int) (*Anime, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	item := Anime{}
 	item.Title = ExtractTitle(media.ID, media)
 	item.ExternalID = media.ID
